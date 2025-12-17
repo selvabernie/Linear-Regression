@@ -1,0 +1,72 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+import joblib
+
+# Load dataset
+df = pd.read_csv("diabetes.csv")
+
+# Replace zero values with NaN and impute
+cols = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+df[cols] = df[cols].replace(0, np.nan)
+df.fillna(df.median(), inplace=True)
+
+X = df.drop("Outcome", axis=1)
+y = df["Outcome"]
+
+# Split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Scale
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+
+# Train model
+model = LogisticRegression()
+model.fit(X_train_scaled, y_train)
+
+# Save model & scaler
+joblib.dump(model, "logistic_model.pkl")
+joblib.dump(scaler, "scaler.pkl")
+
+print("Model and scaler saved successfully")
+
+import streamlit as st
+import numpy as np
+import joblib
+
+# Load model and scaler
+model = joblib.load("logistic_model.pkl")
+scaler = joblib.load("scaler.pkl")
+
+st.set_page_config(page_title="Diabetes Prediction App")
+
+st.title("🩺 Diabetes Prediction App")
+st.write("Logistic Regression Model Deployment using Streamlit")
+
+st.divider()
+
+preg = st.number_input("Pregnancies", 0, 20)
+glucose = st.number_input("Glucose", 0, 200)
+bp = st.number_input("Blood Pressure", 0, 150)
+skin = st.number_input("Skin Thickness", 0, 100)
+insulin = st.number_input("Insulin", 0, 900)
+bmi = st.number_input("BMI", 0.0, 70.0)
+dpf = st.number_input("Diabetes Pedigree Function", 0.0, 3.0)
+age = st.number_input("Age", 1, 100)
+
+if st.button("Predict"):
+    input_data = np.array([[preg, glucose, bp, skin, insulin, bmi, dpf, age]])
+    input_scaled = scaler.transform(input_data)
+
+    prediction = model.predict(input_scaled)[0]
+    probability = model.predict_proba(input_scaled)[0][1]
+
+    if prediction == 1:
+        st.error(f"⚠ Diabetes Detected\n\nProbability: {probability:.2f}")
+    else:
+        st.success(f"✅ No Diabetes\n\nProbability: {probability:.2f}")
